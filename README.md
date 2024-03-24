@@ -5,9 +5,9 @@ This repository contains a few programming etudes, to explore the nix language.
 Featured Algorithms include:
 
 * Fibbonacci Sequence
-* Euklidean Algorithm (compute `gcd(x,y)`)
-* Extended Euklidean Algorithm (compute `a,b` so that `ax+by=gcd(x,y)`)
-* Erathostenes Prime Number Sieve
+* Euklid Algorithm (compute `gcd(x,y)`)
+* Extended Euklid Algorithm (compute `a,b` so that `ax+by=gcd(x,y)`)
+* Prime Number Sieve
 * Sorting Algorithms (Quicksort, Mergesort, Bubblesort)
 
 ## Usage
