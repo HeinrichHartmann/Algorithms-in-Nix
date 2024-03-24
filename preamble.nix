@@ -65,7 +65,7 @@ rec {
         let
           impl_names = filter (name: matchp "^${alg}[[:digit:]]*" name) (attrNames ns);
         in
-          map (name: getAttr name ns) impl_names;
+          map (name: { name=name; lambda=getAttr name ns; } ) impl_names;
       test_names = filter isTest (attrNames namespace);
       tests = map (name:
         rec {
@@ -75,7 +75,7 @@ rec {
           implementations = get_implementations algorithm namespace;
           run = _:
             trace "Running tests for ${algorithm}"
-              (map (impl: (test impl) ++ [";"]) implementations);
+              (map ( impl: [ impl.name ":" ] ++ (test impl.lambda) ++  [";"]) implementations);
         }
       ) test_names;
     in

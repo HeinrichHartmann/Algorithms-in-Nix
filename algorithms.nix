@@ -2,26 +2,108 @@ with builtins;
 with (import ./preamble.nix);
 
 runTests (rec {
-  # Test helper
+  #
+  # Fibbonacci Sequences
+  #
+
+  # Recursion
+  fib1 = n:
+    if n <= 2 then 1 else (fib1 (n - 1)) + (fib1 (n - 2));
+
+  # Iteration
+  fib2 = n:
+    let
+      fi = i: acc: lag:
+        if (i < n) then
+          fi (i+1) (acc+lag) (acc)
+        else
+          acc;
+    in
+      fi 2 1 1;
+
+  # Anonymous recursive function
+  fib3 = n:
+    (REC (self: i: acc: lag:
+      (if i >= n then acc
+       else self (i + 1) (acc + lag) (acc))
+    )) 2 1 1;
+
+  # Memorization
+  fib5 = n:
+    let
+      # Lists are strict in length but lazy in values.
+      # We can use this to trigger computation only on the first access.
+      # iota n = [1 2 3 ... n]
+      iota = n: if n == 0 then [] else (iota (n - 1)) ++ [n];
+      results = map (x: fib x) ([0] ++ (iota n));
+      fib = x:
+          if x <= 2 then 1
+          else
+            (elemAt results (x - 1)) + (elemAt results (x - 2));
+    in
+      fib n;
+
+  test_fib = fib:
+    [
+      (T (map fib (iota 10)) [1 1 2 3 5 8 13 21 34 55])
+    ];
 
   #
-  # Reverse list
+  # Prime numbers
   #
-  reverse1 = L:
-    if length L <= 1 then L else
-      (reverse1 (tail L)) ++ [ (head L) ];
+  dividesp = p: n: (n / p) * p == n;
+  primes1 = n: # -> list of primes
+    let
+      rf = primes: cand:
+        if length cand == 0 then
+          primes
+        else
+          let
+            p = head cand;
+            cand' = filter (x: !(dividesp p x)) (tail cand);
+            primes' = primes ++ [p];
+          in
+            rf primes' cand';
+    in
+      rf [] (tail (iota n));
 
-  reverse2 = REC (rev: L:
-    if length L <= 1 then
-      L
-    else
-      (rev (tail L)) ++ [ (head L) ]);
+  # optimize filtering
+  filter_out_multiles_of = p: lst:
+    let
+      rf = pre: np: post:
+        if (length post) == 0 then pre else
+          let
+            x = head post;
+            pre-x = pre ++ [x];
+            tail-post = tail post;
+          in
+            if np < x then
+              rf pre (np + p) post
+            else if np == x then
+              rf pre (np + p) tail-post
+            else #  np >  (head post)
+              rf pre-x np tail-post;
+    in
+      rf [] p lst;
+  primes2 = n: # -> list of primes
+    let
+      rf = primes: cand:
+        if length cand == 0 then
+          primes
+        else
+          let
+            p = head cand;
+            cand' = filter_out_multiles_of p cand;
+            primes' = primes ++ [p];
+          in
+            rf primes' cand';
+    in
+      rf [] (tail (iota n));
 
-  test_reverse = rev: [
-    (T (rev []) [])
-    (T (rev [1]) [1])
-    (T (rev [1 2 3]) [3 2 1])
-  ];
+  test_primes = primes:
+    [
+      (T (primes 20) [2 3 5 7 11 13 17 19] )
+    ];
 
   #
   # Sort
@@ -156,128 +238,5 @@ runTests (rec {
       (T (egcd 1 1).g 1)
       (T (egcd 3 5) {g=1;a=2;b=1;})
       (T (egcd 75 21) {g=3;a=2;b=7;})
-    ];
-
-  modular_inverse = p: k:
-    # computes l so that k * l mod p = 1 mod p
-    mod (egcd k p).a p;
-
-  test_modular_inverse = inv:
-    let
-      primes = tail (primes1 500); # primes > 2
-      check = k: l: p:
-        1 == (mod ( k * l ) p);
-    in
-    [
-      (T (all (x: x) (map (p: check 2 (inv p 2) p) primes)) true)
-    ];
-
-  #
-  # Fibbonacci Sequences
-  #
-
-  # Naive recusion
-  fib1 = n:
-    if n <= 2 then 1 else (fib1 (n - 1)) + (fib1 (n - 2));
-
-  # Iterative recusion
-  fib2 = n:
-    let
-      fi = i: acc: lag:
-        if (i < n) then
-          fi (i+1) (acc+lag) (acc)
-        else
-          acc;
-    in
-      fi 2 1 1;
-
-  # Iterative recursion w/ named variable
-  fib3 = n:
-    let
-      fi = { i, acc, lag }:
-        if (i < n) then
-          fi { i=i+1; acc=acc+lag; lag=acc;  }
-        else
-          acc;
-    in
-      fi {i=2; acc=1; lag=1; };
-
-  # Fixpoint iteration
-  #   (fix F) 2 1 1              # apply definition of fix
-  # = (let x = Fx in x) 2 1 1    # substitute x
-  # = (let x = Fx in F x) 2 1 1  # un-curry
-  # = (let x = Fx in F x 2 1 1)  # apply definition of f
-  # = (let x = Fx in (if ...))   # evaluate if condition
-  # = (let x = Fx in x 3 2 1)    # substitute x
-  # = (let x = Fx in F x 3 2 1)  # ... and so on
-  # = (let x = Fx in (if ...)
-  fib4 = n:
-    let
-      F = i: acc: lag:
-        (if i >= n then acc
-         else
-           F (i + 1) (acc + lag) (acc));
-    in F 2 1 1;
-
-  test_fib = fib:
-    [
-      (T (map fib (iota 10)) [1 1 2 3 5 8 13 21 34 55])
-    ];
-
-  #
-  # Prime numbers
-  #
-  dividesp = p: n: (n / p) * p == n;
-  primes1 = n: # -> list of primes
-    let
-      rf = primes: cand:
-        if length cand == 0 then
-          primes
-        else
-          let
-            p = head cand;
-            cand' = filter (x: !(dividesp p x)) (tail cand);
-            primes' = primes ++ [p];
-          in
-            rf primes' cand';
-    in
-      rf [] (tail (iota n));
-
-  # optimize filtering
-  filter_out_multiles_of = p: lst:
-    let
-      rf = pre: np: post:
-        if (length post) == 0 then pre else
-          let
-            x = head post;
-            pre-x = pre ++ [x];
-            tail-post = tail post;
-          in
-            if np < x then
-              rf pre (np + p) post
-            else if np == x then
-              rf pre (np + p) tail-post
-            else #  np >  (head post)
-              rf pre-x np tail-post;
-    in
-      rf [] p lst;
-  primes2 = n: # -> list of primes
-    let
-      rf = primes: cand:
-        if length cand == 0 then
-          primes
-        else
-          let
-            p = head cand;
-            cand' = filter_out_multiles_of p cand;
-            primes' = primes ++ [p];
-          in
-            rf primes' cand';
-    in
-      rf [] (tail (iota n));
-
-  test_primes = primes:
-    [
-      (T (primes 20) [2 3 5 7 11 13 17 19] )
     ];
 })
